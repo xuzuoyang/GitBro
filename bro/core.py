@@ -1,16 +1,24 @@
-import logging
+'''
+This module provides a class and all the management functions of pull request.
+'''
+
+from logging import getLogger
 
 from .api import API
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = getLogger(__name__)
 GITHUB_API = API('https://api.github.com')
 GITHUB_PATCH_API = API('https://patch-diff.githubusercontent.com')
 
 
 class PullRequest:
-    '''Pull request object.'''
+    '''Pull request object.
+    Divides a pull request into 3 parts: metadata, main content and extra info.
+    '''
+
     @classmethod
     def from_json(cls, **kwargs):
+        '''Create an object from json data.'''
         return cls(**kwargs)
 
     def __init__(self, **kwargs):
@@ -21,7 +29,7 @@ class PullRequest:
     def meta(self):
         return {
             'id': getattr(self, 'id', -1),
-            'node_id': getattr(self, 'node_id', ''),
+            # 'node_id': getattr(self, 'node_id', ''),
             'number': getattr(self, 'number', -1),
 
             'base': getattr(self, 'base', {})['label'],
@@ -30,7 +38,7 @@ class PullRequest:
             'state': getattr(self, 'state', ''),
             'merged': getattr(self, 'merged', None),
             'mergeable': getattr(self, 'mergeable', None),
-            'rebaseable': getattr(self, 'rebaseable', None),
+            # 'rebaseable': getattr(self, 'rebaseable', None),
 
             'created_at': getattr(self, 'created_at', ''),
             'updated_at': getattr(self, 'updated_at', ''),
@@ -49,12 +57,12 @@ class PullRequest:
             'deletions': getattr(self, 'deletions', -1),
             'changed_files': getattr(self, 'changed_files', -1),
 
-            'assignee': getattr(self, 'assignee', None),
-            'assignees': getattr(self, 'assignees', None) or '',
+            # 'assignee': getattr(self, 'assignee', None),
+            # 'assignees': getattr(self, 'assignees', None) or '',
             'requested_reviewers': getattr(self, 'requested_reviewers', None) or '',
 
-            'labels': getattr(self, 'labels', None) or '',
-            'milestone': getattr(self, 'milestone', None)
+            # 'labels': getattr(self, 'labels', None) or '',
+            # 'milestone': getattr(self, 'milestone', None)
         }
 
     @property
@@ -71,7 +79,7 @@ class PullRequest:
         }
 
 
-def create_pull_request(owner, repo, title, head, base, body='', mcm=False, issue=None):
+def create_pull_request(owner, repo, title, head, base, auth, body='', mcm=False, issue=None):
     payload = {
         'head': head,
         'base': base
@@ -82,7 +90,9 @@ def create_pull_request(owner, repo, title, head, base, body='', mcm=False, issu
         payload['title'] = title
         payload['body'] = body
 
-    json_resp = GITHUB_API.repos.path(owner, repo).pulls.post(payload)
+    json_resp = GITHUB_API.repos.path(owner, repo).pulls.post(
+        json=payload, auth=auth
+    )
     pull_request = PullRequest.from_json(**json_resp)
     return pull_request
 
@@ -91,32 +101,44 @@ def get_pull_request(owner, repo, number, patch=False):
     if patch:
         return GITHUB_PATCH_API.raw.path(owner, repo).pull.path(
             '%s.diff' % number
-        ).get(append_slash=False, response_type='text')
+        ).get(response_type='text')
 
-    json_resp = GITHUB_API.repos.path(owner, repo).pulls.path(number).get(append_slash=False)
+    json_resp = GITHUB_API.repos.path(owner, repo).pulls.path(number).get()
     pull_request = PullRequest.from_json(**json_resp)
     return pull_request
 
 
-def get_pull_requests_by_repo():
-    pass
+def comment_pull_request(owner, repo, number, auth, comment):
+    ''''''
+    payload = {'body': comment}
+    json_resp = GITHUB_API.repos.path(owner, repo).issues.path(number).comments.post(
+        json=payload, auth=auth
+    )
+    return json_resp
 
 
-def comment_pull_request():
-    pass
-
-
-def update_pull_request(owner, repo, number, **kwargs):
+def update_pull_request(owner, repo, number, auth, **payload):
     '''
-    base='', title='', body='', state='open', mcm=False
+    Args:
+        kwargs:
+            title: Title of the pull request.
+            body: Body of the pull request.
+            state: Should be either `open` or `closed`.
+            mcm: If maintainers can modify the pr.
     '''
-    # check kwargs
-
-    json_resp = GITHUB_API.repos.path(owner, repo).pulls.path(number).patch(payload)
+    json_resp = GITHUB_API.repos.path(owner, repo).pulls.path(number).patch(
+        json=payload, auth=auth
+    )
     pull_request = PullRequest.from_json(**json_resp)
     return pull_request
 
 
-
-def merge_pull_request():
-    pass
+def merge_pull_request(owner, repo, number, auth, **payload):
+    '''
+    Args:
+        kwargs:
+            commit_message: Message for the merge commit.
+    '''
+    json_resp = GITHUB_API.repos.path(owner, repo).pulls.path(
+        number).merge.put(json=payload, auth=auth)
+    return json_resp
