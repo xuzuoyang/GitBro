@@ -1,3 +1,9 @@
 requests==2.21.0
 Click==7.0
 tabulate==0.8.2
+
+pytest==3.5.1
+pytest-cov==2.5.1
+pytest-mock==1.10.0
+
+flake8==3.5.0
