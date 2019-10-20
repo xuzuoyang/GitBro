@@ -1,8 +1,7 @@
-from git import Repo, RemoteProgress
+from git import RemoteProgress, Repo
 
 
 class ProgressDisplayer(RemoteProgress):
-
     def update(self, op_code, cur_count, max_count=None, message=''):
         progress = max(int((100 * cur_count) // max_count), 1)
         end = '' if progress != 100 else '\n'
@@ -10,7 +9,6 @@ class ProgressDisplayer(RemoteProgress):
 
 
 class GitRepo:
-
     def __init__(self, repo_path):
         self.repo = Repo(repo_path)
         self.executor = self.repo.git
@@ -67,7 +65,11 @@ class GitRepo:
         print(f'Switched to branch {branch}.')
         return branch_ref.checkout()
 
-    def branch_delete(self, branch, remote=None, force=False, include_remote=False):
+    def branch_delete(self,
+                      branch,
+                      remote=None,
+                      force=False,
+                      include_remote=False):
         self.repo.delete_head(branch, force=force)
         if remote and include_remote:
             self.push(remote, branch, delete=True)

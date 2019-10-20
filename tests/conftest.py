@@ -1,5 +1,4 @@
 import os
-os.listdir
 import shutil
 import pytest
 

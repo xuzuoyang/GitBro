@@ -1,7 +1,7 @@
 '''This module defines a thin wrapper class of requests for chaining usage.'''
 
-from os.path import join
 from logging import getLogger
+from os.path import join
 
 from requests.sessions import Session
 
@@ -51,12 +51,17 @@ class API:
 
         return endpoint
 
-    def retrive_response(self, method, url=None, append_slash=False, response_type='json', **kwargs):
+    def retrive_response(self,
+                         method,
+                         url=None,
+                         append_slash=False,
+                         response_type='json',
+                         **kwargs):
         '''Actual funtion to make requests and get response.
         Args:
-            response_type: type of response to return, could be `text` or `status`, default to `json`.
+            response_type: type of response to return, could be `text` or `status`, default to `json`.  # noqa
         Return:
-            Depend on response_type, use response.text, response.status_code or response.json().
+            Depend on response_type, use response.text, response.status_code or response.json().  # noqa
         '''
         if not url:
             url = self.build_url_path(append_slash)
@@ -69,42 +74,81 @@ class API:
             attr = getattr(resp, response_type, None)
             return attr() if callable(attr) else attr
 
-    def get(self, headers=None, params=None, timeout=None, auth=None, append_slash=False, response_type='json'):
+    def get(self,
+            headers=None,
+            params=None,
+            timeout=None,
+            auth=None,
+            append_slash=False,
+            response_type='json'):
         '''Wrapper method of get.'''
-        return self.retrive_response(
-            'get', headers=headers, params=params,
-            timeout=timeout or self.timeout, append_slash=append_slash,
-            response_type=response_type
-        )
+        return self.retrive_response('get',
+                                     headers=headers,
+                                     params=params,
+                                     timeout=timeout or self.timeout,
+                                     append_slash=append_slash,
+                                     response_type=response_type)
 
-    def post(self, headers=None, json=None, timeout=None, auth=None, append_slash=False, response_type='json'):
+    def post(self,
+             headers=None,
+             json=None,
+             timeout=None,
+             auth=None,
+             append_slash=False,
+             response_type='json'):
         '''Wrapper method of post.'''
-        return self.retrive_response(
-            'post', headers=headers, json=json,
-            timeout=timeout or self.timeout, append_slash=append_slash,
-            response_type=response_type, auth=auth
-        )
+        return self.retrive_response('post',
+                                     headers=headers,
+                                     json=json,
+                                     timeout=timeout or self.timeout,
+                                     append_slash=append_slash,
+                                     response_type=response_type,
+                                     auth=auth)
 
-    def put(self, headers=None, json=None, timeout=None, auth=None, append_slash=False, response_type='json'):
+    def put(self,
+            headers=None,
+            json=None,
+            timeout=None,
+            auth=None,
+            append_slash=False,
+            response_type='json'):
         '''Wrapper method of put.'''
-        return self.retrive_response(
-            'put', headers=headers, json=json,
-            timeout=timeout or self.timeout, append_slash=append_slash,
-            response_type=response_type, auth=auth
-        )
+        return self.retrive_response('put',
+                                     headers=headers,
+                                     json=json,
+                                     timeout=timeout or self.timeout,
+                                     append_slash=append_slash,
+                                     response_type=response_type,
+                                     auth=auth)
 
-    def patch(self, headers=None, json=None, timeout=None, auth=None, append_slash=False, response_type='json'):
+    def patch(self,
+              headers=None,
+              json=None,
+              timeout=None,
+              auth=None,
+              append_slash=False,
+              response_type='json'):
         '''Wrapper method of patch.'''
-        return self.retrive_response(
-            'patch', headers=headers, json=json,
-            timeout=timeout or self.timeout, append_slash=append_slash,
-            response_type=response_type, auth=auth
-        )
+        return self.retrive_response('patch',
+                                     headers=headers,
+                                     json=json,
+                                     timeout=timeout or self.timeout,
+                                     append_slash=append_slash,
+                                     response_type=response_type,
+                                     auth=auth)
 
-    def delete(self, headers=None, json=None, timeout=None, auth=None, append_slash=False, response_type='json'):
+    def delete(self,
+               headers=None,
+               json=None,
+               timeout=None,
+               auth=None,
+               append_slash=False,
+               response_type='json'):
         '''Wrapper method of delete.'''
-        return self.retrive_response(
-            'delete', headers=headers, json=json,
-            timeout=timeout or self.timeout, append_slash=append_slash,
-            response_type=response_type, auth=auth
-        )
+        return self.retrive_response('delete',
+                                     headers=headers,
+                                     json=json,
+                                     timeout=timeout or self.timeout,
+                                     append_slash=append_slash,
+                                     response_type=response_type,
+                                     auth=auth)

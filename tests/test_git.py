@@ -1,8 +1,6 @@
 import git
 import pytest
 
-from bro.git import GitRepo
-
 
 @pytest.mark.usefixtures('git_repo')
 class TestGitBranch:
@@ -40,17 +38,18 @@ class TestGitBranch:
 
 @pytest.mark.usefixtures('git_repo')
 class TestGitRemote:
-
     def test_fetch(self, git_repo, capsys):
         git_repo.fetch('origin', 'master')
 
         captured_res = capsys.readouterr()
         assert 'Fetched origin/master' in captured_res.out
 
-    @pytest.mark.parametrize('args, push_args, output', [
-        (['origin', 'master'], ['origin', 'master'], 'Pushed to origin/master.'),
-        (['origin', 'master', True], ['origin', 'master', '--delete'], 'Deleted origin/master.')
-    ])
+    @pytest.mark.parametrize(
+        'args, push_args, output',
+        [(['origin', 'master'], ['origin', 'master'
+                                 ], 'Pushed to origin/master.'),
+         (['origin', 'master', True], ['origin', 'master', '--delete'
+                                       ], 'Deleted origin/master.')])
     def test_push(self, git_repo, args, push_args, output, capsys):
         git_repo.push(*push_args)
         git_repo.executor.push.assert_called_once_with(push_args)
@@ -58,10 +57,12 @@ class TestGitRemote:
         captured_res = capsys.readouterr()
         assert captured_res.out.strip() == output
 
-    @pytest.mark.parametrize('args, pull_args, output', [
-        (['origin', 'master'], ['origin', 'master'], 'Pulled from origin/master.'),
-        (['origin', 'master', True], ['origin', 'master', '--rebase'], 'Rebased upon origin/master.')
-    ])
+    @pytest.mark.parametrize(
+        'args, pull_args, output',
+        [(['origin', 'master'], ['origin', 'master'
+                                 ], 'Pulled from origin/master.'),
+         (['origin', 'master', True], ['origin', 'master', '--rebase'
+                                       ], 'Rebased upon origin/master.')])
     def test_pull(self, git_repo, args, pull_args, output, capsys):
         git_repo.pull(*pull_args)
         git_repo.executor.pull.assert_called_once_with(pull_args)

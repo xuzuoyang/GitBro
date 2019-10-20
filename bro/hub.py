@@ -31,15 +31,12 @@ class PullRequest:
             'id': getattr(self, 'id', -1),
             # 'node_id': getattr(self, 'node_id', ''),
             'number': getattr(self, 'number', -1),
-
             'base': getattr(self, 'base', {})['label'],
             'head': getattr(self, 'head', {})['label'],
-
             'state': getattr(self, 'state', ''),
             'merged': getattr(self, 'merged', None),
             'mergeable': getattr(self, 'mergeable', None),
             # 'rebaseable': getattr(self, 'rebaseable', None),
-
             'created_at': getattr(self, 'created_at', ''),
             'updated_at': getattr(self, 'updated_at', ''),
             'closed_at': getattr(self, 'closed_at', ''),
@@ -49,17 +46,23 @@ class PullRequest:
     @property
     def content(self):
         return {
-            'title': getattr(self, 'title', ''),
-            'body': getattr(self, 'body', ''),
-
-            'commits': getattr(self, 'commits', -1),
-            'additions': getattr(self, 'additions', -1),
-            'deletions': getattr(self, 'deletions', -1),
-            'changed_files': getattr(self, 'changed_files', -1),
+            'title':
+            getattr(self, 'title', ''),
+            'body':
+            getattr(self, 'body', ''),
+            'commits':
+            getattr(self, 'commits', -1),
+            'additions':
+            getattr(self, 'additions', -1),
+            'deletions':
+            getattr(self, 'deletions', -1),
+            'changed_files':
+            getattr(self, 'changed_files', -1),
 
             # 'assignee': getattr(self, 'assignee', None),
             # 'assignees': getattr(self, 'assignees', None) or '',
-            'requested_reviewers': getattr(self, 'requested_reviewers', None) or '',
+            'requested_reviewers':
+            getattr(self, 'requested_reviewers', None) or '',
 
             # 'labels': getattr(self, 'labels', None) or '',
             # 'milestone': getattr(self, 'milestone', None)
@@ -74,25 +77,30 @@ class PullRequest:
                 'diff_url': getattr(self, 'diff_url', ''),
                 'patch_url': getattr(self, 'patch_url', ''),
                 'comments_url': getattr(self, 'comments_url', ''),
-                'review_comments_url': getattr(self, 'review_comments_url', ''),
+                'review_comments_url': getattr(self, 'review_comments_url',
+                                               ''),
             }
         }
 
 
-def create_pull_request(owner, repo, title, head, base, auth, body='', mcm=False, issue=None):
-    payload = {
-        'head': head,
-        'base': base
-    }
+def create_pull_request(owner,
+                        repo,
+                        title,
+                        head,
+                        base,
+                        auth,
+                        body='',
+                        mcm=False,
+                        issue=None):
+    payload = {'head': head, 'base': base}
     if issue:
         payload['issue'] = issue
     else:
         payload['title'] = title
         payload['body'] = body
 
-    json_resp = GITHUB_API.repos.path(owner, repo).pulls.post(
-        json=payload, auth=auth
-    )
+    json_resp = GITHUB_API.repos.path(owner, repo).pulls.post(json=payload,
+                                                              auth=auth)
     pull_request = PullRequest.from_json(**json_resp)
     return pull_request
 
@@ -100,8 +108,7 @@ def create_pull_request(owner, repo, title, head, base, auth, body='', mcm=False
 def get_pull_request(owner, repo, number, patch=False):
     if patch:
         return GITHUB_PATCH_API.raw.path(owner, repo).pull.path(
-            '%s.diff' % number
-        ).get(response_type='text')
+            '%s.diff' % number).get(response_type='text')
 
     json_resp = GITHUB_API.repos.path(owner, repo).pulls.path(number).get()
     pull_request = PullRequest.from_json(**json_resp)
@@ -111,9 +118,8 @@ def get_pull_request(owner, repo, number, patch=False):
 def comment_pull_request(owner, repo, number, auth, comment):
     ''''''
     payload = {'body': comment}
-    json_resp = GITHUB_API.repos.path(owner, repo).issues.path(number).comments.post(
-        json=payload, auth=auth
-    )
+    json_resp = GITHUB_API.repos.path(
+        owner, repo).issues.path(number).comments.post(json=payload, auth=auth)
     return json_resp
 
 
@@ -127,8 +133,7 @@ def update_pull_request(owner, repo, number, auth, **payload):
             mcm: If maintainers can modify the pr.
     '''
     json_resp = GITHUB_API.repos.path(owner, repo).pulls.path(number).patch(
-        json=payload, auth=auth
-    )
+        json=payload, auth=auth)
     pull_request = PullRequest.from_json(**json_resp)
     return pull_request
 
@@ -139,6 +144,6 @@ def merge_pull_request(owner, repo, number, auth, **payload):
         kwargs:
             commit_message: Message for the merge commit.
     '''
-    json_resp = GITHUB_API.repos.path(owner, repo).pulls.path(
-        number).merge.put(json=payload, auth=auth)
+    json_resp = GITHUB_API.repos.path(
+        owner, repo).pulls.path(number).merge.put(json=payload, auth=auth)
     return json_resp
