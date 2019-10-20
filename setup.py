@@ -3,37 +3,28 @@ import os
 from setuptools import find_packages, setup
 
 NAME = 'gitbro'
-DESCRIPTION = 'Lightweight cli tool for pull request management.'
-URL = 'https://github.com/xuzuoyang/gitbro'
-EMAIL = 'xuzuoyang@gmail.com'
+VERSION = '0.0.1'
+DESCRIPTION = 'Git management tool for better workflow.'
 AUTHOR = 'xzy'
-REQUIRES_PYTHON = '>=3.6.0'
-VERSION = None
-
-REQUIRED = ['requests', 'click', 'tabulate']
-
-here = os.path.abspath(os.path.dirname(__file__))
-
-about = {}
-if not VERSION:
-    with open(os.path.join(here, NAME, '__version__.py')) as f:
-        exec(f.read(), about)
-else:
-    about['__version__'] = VERSION
+EMAIL = 'xuzuoyang@gmail.com'
+URL = 'https://github.com/xuzuoyang/gitbro'
 
 setup(
     name=NAME,
-    version=about['__version__'],
+    version=VERSION,
     description=DESCRIPTION,
     author=AUTHOR,
     author_email=EMAIL,
-    python_requires=REQUIRES_PYTHON,
+    python_requires='>=3.7.0',
     url=URL,
     packages=find_packages(exclude=('tests',)),
     entry_points={
         'console_scripts': ['bro=bro.cli:bro'],
     },
-    install_requires=REQUIRED,
+    install_requires=['requests', 'click', 'tabulate'],
+    extras_require={
+        'test': ['pytest', 'pytest-cov', 'pytest-mock']
+    },
     include_package_data=True,
     license='MIT'
 )
