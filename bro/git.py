@@ -75,3 +75,16 @@ class GitRepo:
             self.push(remote, branch, delete=True)
 
         print(f'Deleted local branch {branch}.')
+
+    @property
+    def current_branch(self):
+        return self.repo.active_branch
+
+    def merge(self, branch):
+        master, subster = self.current_branch, self.repo.heads[branch]
+        merge_base = self.repo.merge_base(master, subster)
+        self.repo.index.merge_tree(subster, base=merge_base)
+        return self.repo.index.commit(
+            f'Merged {master.name} with {branch} by gitbro.',
+            parent_commits=(master.commit, subster.commit)
+        )

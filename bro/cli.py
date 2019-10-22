@@ -73,6 +73,7 @@ def pipeline(repo, through, merge):
 def putout(repo, branch, upon, keep_remote, back_to):
     '''End the branch after finishing the task.'''
     repo.branch_checkout(back_to)
+    repo.merge(branch)
     repo.branch_delete(branch, upon, include_remote=not keep_remote)
 
 
