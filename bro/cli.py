@@ -1,11 +1,17 @@
 '''This module contains cli functions.'''
 
 import click
+from click import argument, command, option
 from tabulate import tabulate
 
 from bro.git import GitRepo
 from bro.hub import (comment_pull_request, create_pull_request,
                      get_pull_request, merge_pull_request, update_pull_request)
+from bro.utils import error_handler, print_normal, validate_branch
+
+REMOTE_UPSTREAM = 'upstream'
+REMOTE_ORIGIN = 'origin'
+BRANCH_MAIN = 'master'
 
 
 class AliasedGroup(click.Group):
@@ -22,64 +28,79 @@ class AliasedGroup(click.Group):
         return super().get_command(ctx, cmd_name)
 
 
-@click.command(cls=AliasedGroup)
-@click.option('-p', '--path', default='.')
+@command(cls=AliasedGroup)
+@option('-p', '--path', default='.')
 @click.pass_context
+@error_handler
 def bro(ctx, path):
     '''Git workflow management tool.'''
     ctx.obj = GitRepo.from_path(path)
 
 
 @bro.command()
-@click.argument('branch')
-@click.option('-s',
-              '--since',
-              type=str,
-              default='upstream/master',
-              help='Start point of the branch.')
+@argument('branch')
+@option('-s',
+        '--since',
+        type=str,
+        default='master',
+        help='Start point of the new branch, default master.')
 @click.pass_obj
+@error_handler
 def pickup(repo, branch, since):
     '''Start a new branch to work on.'''
-    if since.count('/') == 2:
-        remote, branch = since.split('/')
-        repo.fetch(remote, branch)
-    else:
-        branch = since
-    repo.branch_checkout(branch, create=True, start_point=since)
+    validate_branch(repo, since)
+
+    repo.fetch(REMOTE_UPSTREAM, since)
+    remote_branch = f'{REMOTE_UPSTREAM}/{since}'
+    print_normal(f'Fetched remote branch {remote_branch}.')
+
+    repo.branch_checkout(branch, create=True, start_point=remote_branch)
+    print_normal(f'Start branch {branch} from {remote_branch}.')
+    print_normal(f'You are in branch {branch} now.')
 
 
 @bro.command()
-@click.option('-t',
-              '--through',
-              default='upstream/master',
-              help='Remote branch to sync from.')
-@click.option('-m', '--merge', is_flag=True, help='Merge instead of rebase.')
+@option('-t',
+        '--through',
+        default='master',
+        help='Remote branch to sync from.')
+@option('-m', '--merge', is_flag=True, help='Merge instead of rebase.')
 @click.pass_obj
+@error_handler
 def pipeline(repo, through, merge):
     '''Sync with certain remote branch.'''
-    remote, branch = through.split('/')
-    repo.pull(remote, branch, rebase=not merge)
+    validate_branch(repo, through)
+
+    repo.pull(REMOTE_UPSTREAM, through, rebase=not merge)
+    method = 'merged' if merge else 'rebased'
+    print_normal(f'Synced from {REMOTE_UPSTREAM}/{through} ({method}).')
 
 
 @bro.command()
-@click.argument('branch')
-@click.option('-u', '--upon', default='origin', help='On which remote to delete branch.')
-@click.option('-k', '--keep-remote', is_flag=True, help='Keep remote branch.')
-@click.option('-b',
-              '--back-to',
-              default='master',
-              help='Branch to switch back first.')
+@argument('branch')
+@option('-k', '--keep-remote', is_flag=True, help='Keep remote branch.')
 @click.pass_obj
-def putout(repo, branch, upon, keep_remote, back_to):
+@error_handler
+def putout(repo, branch, keep_remote):
     '''End the branch after finishing the task.'''
-    repo.branch_checkout(back_to)
-    repo.merge(branch)
-    repo.branch_delete(branch, upon, include_remote=not keep_remote)
+    validate_branch(repo, branch)
+
+    repo.branch_checkout(BRANCH_MAIN)
+    print_normal(f'Checked out to branch {BRANCH_MAIN}.')
+
+    repo.pull(REMOTE_UPSTREAM, BRANCH_MAIN)
+    print_normal(f'Synced from remote {REMOTE_UPSTREAM} (rebased).')
+
+    repo.branch_delete(branch)
+    print_normal(f'Deleted local branch {branch}.')
+    if not keep_remote:
+        repo.push(REMOTE_ORIGIN, branch, delete=True)
+        print_normal(f'Deleted remote branch {REMOTE_ORIGIN}/{branch}.')
 
 
 @bro.group()
-@click.argument('owner')
-@click.argument('repo')
+@argument('owner')
+@argument('repo')
 @click.pass_context
 def pull_request(ctx, owner, repo):
     '''Manage pull requests of github.'''
@@ -87,24 +108,24 @@ def pull_request(ctx, owner, repo):
 
 
 @pull_request.command()
-@click.option('-u',
-              '--user',
-              required=True,
-              type=str,
-              help='Owner of the repo starting the pr.')
-@click.option('-p', '--password', prompt=True, hide_input=True)
-@click.option('-b',
-              '--branch',
-              required=True,
-              type=str,
-              help='Format as `local:remote`, default to `master:master`')
-@click.option('--title', required=True, type=str, help='Title of the pr.')
-@click.option('--body', type=str, help='Content body of the pr.')
-@click.option('--mcm',
-              type=bool,
-              default=False,
-              help='If maintainers can modify the pr, default to true.')
-@click.option('--issue', type=int, help='Issue number to form the pr.')
+@option('-u',
+        '--user',
+        required=True,
+        type=str,
+        help='Owner of the repo starting the pr.')
+@option('-p', '--password', prompt=True, hide_input=True)
+@option('-b',
+        '--branch',
+        required=True,
+        type=str,
+        help='Format as `local:remote`, default to `master:master`')
+@option('--title', required=True, type=str, help='Title of the pr.')
+@option('--body', type=str, help='Content body of the pr.')
+@option('--mcm',
+        type=bool,
+        default=False,
+        help='If maintainers can modify the pr, default to true.')
+@option('--issue', type=int, help='Issue number to form the pr.')
 @click.pass_obj
 def make(state, user, branch, title, body, mcm, issue, password):
     '''Make a pull request.
@@ -132,13 +153,10 @@ def make(state, user, branch, title, body, mcm, issue, password):
 
 
 @pull_request.command()
-@click.argument('owner')
-@click.argument('repo')
-@click.option('-n', '--num', help='Number of a pr.')
-@click.option('-p',
-              '--patch',
-              is_flag=True,
-              help='Show patch content of the pr.')
+@argument('owner')
+@argument('repo')
+@option('-n', '--num', help='Number of a pr.')
+@option('-p', '--patch', is_flag=True, help='Show patch content of the pr.')
 @click.pass_obj
 def show(state, num, patch):
     '''Show content of a pull request.'''
@@ -154,14 +172,14 @@ def show(state, num, patch):
 
 
 @pull_request.command()
-@click.option('-n', '--num', required=True, help='Number of a pr.')
-@click.option('-u',
-              '--user',
-              required=True,
-              type=str,
-              help='Owner of the repo starting the pr.')
-@click.option('-p', '--password', prompt=True, hide_input=True)
-@click.option('-c', '--content', required=True, help='Content to comment.')
+@option('-n', '--num', required=True, help='Number of a pr.')
+@option('-u',
+        '--user',
+        required=True,
+        type=str,
+        help='Owner of the repo starting the pr.')
+@option('-p', '--password', prompt=True, hide_input=True)
+@option('-c', '--content', required=True, help='Content to comment.')
 @click.pass_obj
 def comment(state, num, user, password, content):
     '''Comment on a pull request.'''
@@ -181,18 +199,18 @@ def comment(state, num, user, password, content):
 
 
 @pull_request.command()
-@click.option('-n', '--num', required=True, help='Number of a pr.')
-@click.option('-u',
-              '--user',
-              required=True,
-              type=str,
-              help='Owner of the repo starting the pr.')
-@click.option('-p', '--password', prompt=True, hide_input=True)
-@click.option('--title', help='New title of the pr.')
-@click.option('--body', help='New body of the pr.')
-@click.option('--mcm/--no-mcm',
-              default=True,
-              help='If maintainers can modify the pr.')
+@option('-n', '--num', required=True, help='Number of a pr.')
+@option('-u',
+        '--user',
+        required=True,
+        type=str,
+        help='Owner of the repo starting the pr.')
+@option('-p', '--password', prompt=True, hide_input=True)
+@option('--title', help='New title of the pr.')
+@option('--body', help='New body of the pr.')
+@option('--mcm/--no-mcm',
+        default=True,
+        help='If maintainers can modify the pr.')
 @click.pass_obj
 def update(state, num, user, password, title, body, mcm):
     '''Modify a pull request.'''
@@ -209,15 +227,15 @@ def update(state, num, user, password, title, body, mcm):
 
 
 @pull_request.command()
-@click.option('-n', '--num', required=True, type=str, help='Number of a pr.')
-@click.option('-u',
-              '--user',
-              required=True,
-              type=str,
-              help='Owner of the repo starting the pr.')
-@click.option('-p', '--password', prompt=True, hide_input=True)
-@click.option('--close', 'state', flag_value='closed', default=True)
-@click.option('--open', 'state', flag_value='open')
+@option('-n', '--num', required=True, type=str, help='Number of a pr.')
+@option('-u',
+        '--user',
+        required=True,
+        type=str,
+        help='Owner of the repo starting the pr.')
+@option('-p', '--password', prompt=True, hide_input=True)
+@option('--close', 'state', flag_value='closed', default=True)
+@option('--open', 'state', flag_value='open')
 @click.pass_obj
 def toggle(state_obj, num, user, password, state):
     '''Close a pull request.'''
@@ -232,14 +250,14 @@ def toggle(state_obj, num, user, password, state):
 
 
 @pull_request.command()
-@click.option('-n', '--num', required=True, help='Number of a pr.')
-@click.option('-u',
-              '--user',
-              required=True,
-              type=str,
-              help='Owner of the repo starting the pr.')
-@click.option('-p', '--password', prompt=True, hide_input=True)
-@click.option('-m', '--message', type=str, help='Merge commit message.')
+@option('-n', '--num', required=True, help='Number of a pr.')
+@option('-u',
+        '--user',
+        required=True,
+        type=str,
+        help='Owner of the repo starting the pr.')
+@option('-p', '--password', prompt=True, hide_input=True)
+@option('-m', '--message', type=str, help='Merge commit message.')
 @click.pass_obj
 def merge(state, num, user, password, message):
     '''Merge a pull request.'''
