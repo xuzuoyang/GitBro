@@ -2,7 +2,23 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-gitbro is a cli tool to manage pull requests on github.
+Gitbro is a cli management tool for better git workflow.
+
+Typical workflows based on git might be:
+
+1. Checkout to a new branch and work on it.
+2. Commit all the dev code and push to your own repo.
+3. `Start a pull request to the forked repo and let's say it gets merged.`
+4. Delete the work branch and maybe its remote too.
+5. Move to another task and repeat the cycle.
+
+Or
+
+1. Checkout to a new branch to work.
+2. Commit and push to your own repo.
+3. `Start a pull request to the master branch and gets merged.`
+4. Delete this work branch.
+5. All the same again from here.
 
 ## Installation
 
@@ -13,156 +29,19 @@ python setup.py install
 ## Usage
 
 ```bash
-$ bro make xuzuoyang mypackage -u xuzuoyang -b cookiecutter:master --title "second test"
-+------------+----------------------------------+
-| id         | 249942518                        |
-+------------+----------------------------------+
-| node_id    | MDExOlB1bGxSZXF1ZXN0MjQ5OTQyNTE4 |
-+------------+----------------------------------+
-| number     | 2                                |
-+------------+----------------------------------+
-| base       | xuzuoyang:master                 |
-+------------+----------------------------------+
-| head       | xuzuoyang:cookiecutter           |
-+------------+----------------------------------+
-| state      | open                             |
-+------------+----------------------------------+
-| merged     | False                            |
-+------------+----------------------------------+
-| mergeable  | False                            |
-+------------+----------------------------------+
-| created_at | 2019-02-04T05:32:29Z             |
-+------------+----------------------------------+
-| updated_at | 2019-02-05T05:42:54Z             |
-+------------+----------------------------------+
-| closed_at  |                                  |
-+------------+----------------------------------+
-| merged_at  |                                  |
-+------------+----------------------------------+
-+---------------------+----------------+
-| title               | second test    |
-+---------------------+----------------+
-| body                |                |
-+---------------------+----------------+
-| commits             | 4              |
-+---------------------+----------------+
-| additions           | 120            |
-+---------------------+----------------+
-| deletions           | 20             |
-+---------------------+----------------+
-| changed_files       | 16             |
-+---------------------+----------------+
-| requested_reviewers |                |
-+---------------------+----------------+
+# Start dev branch based on upstream/master.
+$ bro pickup dev --since master
 
-$ bro show xuzuoyang mypackage -n 2
-+------------+----------------------------------+
-| id         | 249942518                        |
-+------------+----------------------------------+
-| node_id    | MDExOlB1bGxSZXF1ZXN0MjQ5OTQyNTE4 |
-+------------+----------------------------------+
-| number     | 2                                |
-+------------+----------------------------------+
-| base       | xuzuoyang:master                 |
-+------------+----------------------------------+
-| head       | xuzuoyang:cookiecutter           |
-+------------+----------------------------------+
-| state      | open                             |
-+------------+----------------------------------+
-| merged     | False                            |
-+------------+----------------------------------+
-| mergeable  | False                            |
-+------------+----------------------------------+
-| created_at | 2019-02-04T05:32:29Z             |
-+------------+----------------------------------+
-| updated_at | 2019-02-05T05:42:54Z             |
-+------------+----------------------------------+
-| closed_at  |                                  |
-+------------+----------------------------------+
-| merged_at  |                                  |
-+------------+----------------------------------+
-+---------------------+----------------+
-| title               | second test    |
-+---------------------+----------------+
-| body                | update pr body |
-+---------------------+----------------+
-| commits             | 4              |
-+---------------------+----------------+
-| additions           | 120            |
-+---------------------+----------------+
-| deletions           | 20             |
-+---------------------+----------------+
-| changed_files       | 16             |
-+---------------------+----------------+
-| requested_reviewers |                |
-+---------------------+----------------+
+# Sync from upstream/master, default to rebase. Add --merge to merge it.
+$ bro pipeline --through master
 
-$ bro comment xuzuoyang mypackage -n 2 -u xuzuoyang -c "another comment generated by brocli."
-+------------+----------------------------------------------------------------------+
-| comment    | another comment generated by brocli.                                 |
-+------------+----------------------------------------------------------------------+
-| url        | https://github.com/xuzuoyang/mypackage/pull/2#issuecomment-460520200 |
-+------------+----------------------------------------------------------------------+
-| created_at | 2019-02-05T05:42:54Z                                                 |
-+------------+----------------------------------------------------------------------+
-| updated_at | 2019-02-05T05:42:54Z                                                 |
-+------------+----------------------------------------------------------------------+
-
-$ bro update xuzuoyang mypackage -n 2 --title "second test" --body "update pr body" -u xuzuoyang
-+---------------------+----------------+
-| title               | second test    |
-+---------------------+----------------+
-| body                | update pr body |
-+---------------------+----------------+
-| commits             | 4              |
-+---------------------+----------------+
-| additions           | 120            |
-+---------------------+----------------+
-| deletions           | 20             |
-+---------------------+----------------+
-| changed_files       | 16             |
-+---------------------+----------------+
-| requested_reviewers |                |
-+---------------------+----------------+
-
-$ bro toggle xuzuoyang mypackage -n 2 -u xuzuoyang --close 
-+------------+------------------------+
-| id         | 249942518              |
-+------------+------------------------+
-| number     | 2                      |
-+------------+------------------------+
-| base       | xuzuoyang:master       |
-+------------+------------------------+
-| head       | xuzuoyang:cookiecutter |
-+------------+------------------------+
-| state      | closed                 |
-+------------+------------------------+
-| merged     | False                  |
-+------------+------------------------+
-| mergeable  | False                  |
-+------------+------------------------+
-| created_at | 2019-02-04T05:32:29Z   |
-+------------+------------------------+
-| updated_at | 2019-02-05T07:41:40Z   |
-+------------+------------------------+
-| closed_at  | 2019-02-05T07:41:40Z   |
-+------------+------------------------+
-| merged_at  |                        |
-+------------+------------------------+
+# Delete both local and remote branch. Or keep rb with --keep-remote.
+$ bro putout dev
 ```
 
 ## Support
 
-python3.5+
-
-## Roadmap
-
-- [ ] add api test cases.
-- [ ] handle api exceptions.
-- [ ] preferences config file.
-- [ ] optimize display contents.
-- [ ] show comments of pull requests.
-- [ ] search pull requests of certain repo.
+python 3.7+
 
 ## Changelog
 
