@@ -1,15 +1,16 @@
 '''This module contains cli functions.'''
 
-from pathlib import Path
 from configparser import ConfigParser
+from pathlib import Path
 from webbrowser import open_new
+
 import click
 from click import argument, command, option
-from tabulate import tabulate
 
 from bro.git import GitRepo
-from bro.hub import (request_github_access_token, create_pull_request)
-from bro.utils import error_handler, print_normal, print_error, validate_branch, get_pr_msg
+from bro.hub import create_pull_request, request_github_access_token
+from bro.utils import (error_handler, get_pr_msg, print_error, print_normal,
+                       validate_branch)
 
 CONFIG_FILE = Path.home() / '.config/bro'
 
@@ -54,11 +55,18 @@ def bro(ctx, path):
     ctx.obj = {
         'repo': GitRepo.from_path(path),
         'config': {
-            'main_branch': config_parser.get('git', 'main_branch', fallback=BRANCH_MAIN),
-            'origin_remote': config_parser.get('git', 'origin_remote', fallback=REMOTE_ORIGIN),
-            'upstream_remote': config_parser.get('git', 'upstream_remote', fallback=REMOTE_UPSTREAM),
-            'username': config_parser.get('github', 'username', fallback=''),
-            'access_token': config_parser.get('github', 'access_token', fallback='')
+            'main_branch':
+            config_parser.get('git', 'main_branch', fallback=BRANCH_MAIN),
+            'origin_remote':
+            config_parser.get('git', 'origin_remote', fallback=REMOTE_ORIGIN),
+            'upstream_remote':
+            config_parser.get('git',
+                              'upstream_remote',
+                              fallback=REMOTE_UPSTREAM),
+            'username':
+            config_parser.get('github', 'username', fallback=''),
+            'access_token':
+            config_parser.get('github', 'access_token', fallback='')
         }
     }
 
@@ -101,7 +109,8 @@ def pipeline(ctx, through, merge):
 
     repo.pull(config['upstream_remote'], through, rebase=not merge)
     method = 'merged' if merge else 'rebased'
-    print_normal(f'Synced from {config["upstream_remote"]}/{through} ({method}).')
+    print_normal(
+        f'Synced from {config["upstream_remote"]}/{through} ({method}).')
 
 
 @bro.command()
@@ -124,7 +133,8 @@ def putout(ctx, branch, keep_remote):
     print_normal(f'Deleted local branch {branch}.')
     if not keep_remote:
         repo.push(config['origin_remote'], branch, delete=True)
-        print_normal(f'Deleted remote branch {config["origin_remote"]}/{branch}.')
+        print_normal(
+            f'Deleted remote branch {config["origin_remote"]}/{branch}.')
 
 
 @bro.group()
@@ -134,10 +144,17 @@ def pull_request(ctx):
     config = ctx['config']
     if not config['username'] or not config['access_token']:
         username = click.prompt('Please enter github username', type=str)
-        password = click.prompt('Please enter github password', hide_input=True, type=str)
-        otp_code = click.prompt('Please enter otp code if it is used', default='', hide_input=True, type=str)
+        password = click.prompt('Please enter github password',
+                                hide_input=True,
+                                type=str)
+        otp_code = click.prompt('Please enter otp code if it is used',
+                                default='',
+                                hide_input=True,
+                                type=str)
         # TODO: 401, 422 等 http error 没有封装
-        created, res = request_github_access_token(username, password, otp_code=otp_code)
+        created, res = request_github_access_token(username,
+                                                   password,
+                                                   otp_code=otp_code)
         if not created:
             print_error(f'Failed to generate access token: {res}')
         else:
@@ -147,7 +164,7 @@ def pull_request(ctx):
             config_parser['github']['access_token'] = res
             with open(CONFIG_FILE, 'w') as f:
                 config_parser.write(f)
-            print_normal(f'Your access token for gitbro has been generated and saved in {CONFIG_FILE}.')
+            print_normal(f'Your access token for gitbro has been generated and saved in {CONFIG_FILE}.')  # noqa
 
 
 @pull_request.command()
@@ -164,18 +181,15 @@ def make(ctx, owner, base, open_browser):
     title, body = get_pr_msg()
     username, token = config['username'], config['access_token']
     head = f'{username}:{repo.current_branch.name}'
-    pr = create_pull_request(
-        owner,
-        repo.name,
-        title,
-        head=head,
-        base=base,
-        auth=(username, token),
-        body=body
-    )
+    pr = create_pull_request(owner,
+                             repo.name,
+                             title,
+                             head=head,
+                             base=base,
+                             auth=(username, token),
+                             body=body)
     print_normal(
-        f'Pull request {pr.number} from {head} to {owner}:{base} created.'
-    )
+        f'Pull request {pr.number} from {head} to {owner}:{base} created.')
     if open_browser:
         try:
             url = pr.extra['urls']['html_url']

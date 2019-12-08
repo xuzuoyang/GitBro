@@ -11,13 +11,19 @@ GITHUB_API = API('https://api.github.com')
 GITHUB_PATCH_API = API('https://patch-diff.githubusercontent.com')
 
 
-def request_github_access_token(username, password, scopes=None, token_name='gitbro', otp_code=None):
+def request_github_access_token(username,
+                                password,
+                                scopes=None,
+                                token_name='gitbro',
+                                otp_code=None):
     headers = {'x-github-otp': otp_code} if otp_code else {}
     payload = {
         'scopes': scopes if scopes else ['public_repo'],
         'note': token_name
     }
-    json_resp = GITHUB_API.authorizations.post(headers=headers, json=payload, auth=(username, password))
+    json_resp = GITHUB_API.authorizations.post(headers=headers,
+                                               json=payload,
+                                               auth=(username, password))
     if 'token' in json_resp:
         return True, json_resp['token']
     else:

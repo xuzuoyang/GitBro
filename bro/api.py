@@ -3,8 +3,8 @@
 from logging import getLogger
 from os.path import join
 
-from requests.sessions import Session
 from requests.auth import HTTPBasicAuth
+from requests.sessions import Session
 
 LOGGER = getLogger(__name__)
 DEFAULT_TIMEOUT = 5

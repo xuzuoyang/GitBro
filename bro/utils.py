@@ -1,8 +1,8 @@
 from functools import partial, wraps
+from os import environ
+from subprocess import call
 from sys import exit
 from tempfile import NamedTemporaryFile
-from subprocess import call
-from os import environ
 
 from click import secho
 
