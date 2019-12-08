@@ -11,6 +11,19 @@ GITHUB_API = API('https://api.github.com')
 GITHUB_PATCH_API = API('https://patch-diff.githubusercontent.com')
 
 
+def request_github_access_token(username, password, scopes=None, token_name='gitbro', otp_code=None):
+    headers = {'x-github-otp': otp_code} if otp_code else {}
+    payload = {
+        'scopes': scopes if scopes else ['public_repo'],
+        'note': token_name
+    }
+    json_resp = GITHUB_API.authorizations.post(headers=headers, json=payload, auth=(username, password))
+    if 'token' in json_resp:
+        return True, json_resp['token']
+    else:
+        return False, json_resp.get('message', 'Unknown error')
+
+
 class PullRequest:
     '''Pull request object.
     Divides a pull request into 3 parts: metadata, main content and extra info.

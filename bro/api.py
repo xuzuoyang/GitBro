@@ -4,6 +4,7 @@ from logging import getLogger
 from os.path import join
 
 from requests.sessions import Session
+from requests.auth import HTTPBasicAuth
 
 LOGGER = getLogger(__name__)
 DEFAULT_TIMEOUT = 5
@@ -56,16 +57,20 @@ class API:
                          url=None,
                          append_slash=False,
                          response_type='json',
+                         auth=None,
                          **kwargs):
         '''Actual funtion to make requests and get response.
         Args:
             response_type: type of response to return, could be `text` or `status`, default to `json`.  # noqa
+            auth: two items in a tuple, like (username, password)
         Return:
             Depend on response_type, use response.text, response.status_code or response.json().  # noqa
         '''
         if not url:
             url = self.build_url_path(append_slash)
-        resp = self._session.request(method, url=url, **kwargs)
+        if auth:
+            auth = HTTPBasicAuth(*auth)
+        resp = self._session.request(method, url=url, auth=auth, **kwargs)
 
         LOGGER.debug('Raw response retrived: %s', resp.text)
         resp.raise_for_status()
@@ -87,7 +92,8 @@ class API:
                                      params=params,
                                      timeout=timeout or self.timeout,
                                      append_slash=append_slash,
-                                     response_type=response_type)
+                                     response_type=response_type,
+                                     auth=auth)
 
     def post(self,
              headers=None,
