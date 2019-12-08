@@ -1,5 +1,5 @@
 from logging import getLogger
-from os.path import abspath
+from pathlib import Path
 
 from git import RemoteProgress, Repo
 from git.exc import GitCommandError, InvalidGitRepositoryError
@@ -21,11 +21,12 @@ class ProgressDisplayer(RemoteProgress):
 
 class GitRepo:
     def __init__(self, repo_path):
+        self.path = Path(repo_path).absolute()
         try:
             self.repo = Repo(repo_path)
         except InvalidGitRepositoryError:
-            abs_path = abspath(repo_path)
-            raise InvalidGitRepo(f'Path {abs_path} is not a git repo.')
+            raise InvalidGitRepo(f'Path {self.path} is not a git repo.')
+        self.name = self.path.name
         self.executor = self.repo.git
 
     @classmethod
@@ -57,6 +58,14 @@ class GitRepo:
                 LOGGER.info(f'Fetched {info.name} to {info.commit}.')
         except GitCommandError as e:
             raise GitCmdError(f'Failed to fetch {remote}/{branch}.',
+                              command=e.command)
+
+    def fetch_pull_request(self, remote, pr_id, branch):
+        args = [remote, f'pull/{pr_id}/head:{branch}']
+        try:
+            self.executor.fetch(args)
+        except GitCommandError as e:
+            raise GitCmdError(f'Failed to fetch pr {remote}/{pr_id}.',
                               command=e.command)
 
     def push(self, remote, branch, delete=False):

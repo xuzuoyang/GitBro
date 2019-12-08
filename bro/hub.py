@@ -118,12 +118,13 @@ def create_pull_request(owner,
     return pull_request
 
 
-def get_pull_request(owner, repo, number, patch=False):
+def get_pull_request(owner, repo, number, auth, patch=False):
     if patch:
         return GITHUB_PATCH_API.raw.path(owner, repo).pull.path(
             '%s.diff' % number).get(response_type='text')
 
-    json_resp = GITHUB_API.repos.path(owner, repo).pulls.path(number).get()
+    json_resp = GITHUB_API.repos.path(owner,
+                                      repo).pulls.path(number).get(auth=auth)
     pull_request = PullRequest.from_json(**json_resp)
     return pull_request
 
