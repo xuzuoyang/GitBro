@@ -128,172 +128,76 @@ def putout(ctx, branch, keep_remote):
 
 
 @bro.group()
-@argument('owner')
-@argument('repo')
-@click.pass_context
-def pull_request(ctx, owner, repo):
+@click.pass_obj
+def pull_request(ctx):
     '''Manage pull requests of github.'''
-    ctx.obj = {'owner': owner, 'repo': repo}
-
-
-@pull_request.command()
-@option('-u',
-        '--user',
-        required=True,
-        type=str,
-        help='Owner of the repo starting the pr.')
-@option('-p', '--password', prompt=True, hide_input=True)
-@option('-b',
-        '--branch',
-        required=True,
-        type=str,
-        help='Format as `local:remote`, default to `master:master`')
-@option('--title', required=True, type=str, help='Title of the pr.')
-@option('--body', type=str, help='Content body of the pr.')
-@option('--mcm',
-        type=bool,
-        default=False,
-        help='If maintainers can modify the pr, default to true.')
-@option('--issue', type=int, help='Issue number to form the pr.')
-@click.pass_obj
-def make(state, user, branch, title, body, mcm, issue, password):
-    '''Make a pull request.
-
-    '''
-    owner, repo = state['owner'], state['repo']
-    branch_local, branch_remote = branch.split(':')
-    head = '{user}:{branch}'.format(user=user, branch=branch_local)
-    pull_request = create_pull_request(owner,
-                                       repo,
-                                       title,
-                                       head=head,
-                                       base=branch_remote,
-                                       auth=(user, password),
-                                       body=body,
-                                       mcm=mcm,
-                                       issue=issue)
-    click.echo(
-        'Pull request {num} from {user}:{branch_local} to {owner}:{branch_remote} has been created!'  # noqa
-        .format(owner=owner,
-                user=user,
-                num=pull_request.number,
-                branch_local=branch_local,
-                branch_remote=branch_remote))
+    config = ctx['config']
+    if not config['username'] or not config['access_token']:
+        username = click.prompt('Please enter github username', type=str)
+        password = click.prompt('Please enter github password', hide_input=True, type=str)
+        otp_code = click.prompt('Please enter otp code if it is used', default='', hide_input=True, type=str)
+        # TODO: 401, 422 等 http error 没有封装
+        created, res = request_github_access_token(username, password, otp_code=otp_code)
+        if not created:
+            print_error(f'Failed to generate access token: {res}')
+        else:
+            config_parser = ConfigParser()
+            config_parser.read(CONFIG_FILE)
+            config_parser['github']['username'] = username
+            config_parser['github']['access_token'] = res
+            with open(CONFIG_FILE, 'w') as f:
+                config_parser.write(f)
+            print_normal(f'Your access token for gitbro has been generated and saved in {CONFIG_FILE}.')
 
 
 @pull_request.command()
 @argument('owner')
-@argument('repo')
-@option('-n', '--num', help='Number of a pr.')
-@option('-p', '--patch', is_flag=True, help='Show patch content of the pr.')
+@option('-b', '--base', default='master')
+@option('-o', '--open-browser', is_flag=True, help='Display pr on browser.')
 @click.pass_obj
-def show(state, num, patch):
-    '''Show content of a pull request.'''
-    owner, repo = state['owner'], state['repo']
-    if patch:
-        patch_content = get_pull_request(owner, repo, num, patch=True)
-        click.echo_via_pager(patch_content)
-    else:
-        pull_request = get_pull_request(owner, repo, num)
-        for key in ['meta', 'content']:
-            attr = getattr(pull_request, key, {})
-            click.echo(tabulate(list(attr.items()), tablefmt='grid'))
+def make(ctx, owner, base, open_browser):
+    '''Create a pull request.'''
+    repo, config = ctx['repo'], ctx['config']
+    # Push to remote first.
+    repo.push(config['origin_remote'], repo.current_branch)
+
+    title, body = get_pr_msg()
+    username, token = config['username'], config['access_token']
+    head = f'{username}:{repo.current_branch.name}'
+    pr = create_pull_request(
+        owner,
+        repo.name,
+        title,
+        head=head,
+        base=base,
+        auth=(username, token),
+        body=body
+    )
+    print_normal(
+        f'Pull request {pr.number} from {head} to {owner}:{base} created.'
+    )
+    if open_browser:
+        try:
+            url = pr.extra['urls']['html_url']
+            open_new(url)
+            print_normal(f'New pull request opened in browser: {url}.')
+        except KeyError:
+            print_error('Unable to find valid url for new pull request.')
 
 
 @pull_request.command()
-@option('-n', '--num', required=True, help='Number of a pr.')
-@option('-u',
-        '--user',
-        required=True,
-        type=str,
-        help='Owner of the repo starting the pr.')
-@option('-p', '--password', prompt=True, hide_input=True)
-@option('-c', '--content', required=True, help='Content to comment.')
+@argument('pr_id')
+@argument('branch')
+@option('-c', '--checkout', is_flag=True, help='Checkout to the pr branch.')
 @click.pass_obj
-def comment(state, num, user, password, content):
-    '''Comment on a pull request.'''
-    owner, repo = state['owner'], state['repo']
-    response = comment_pull_request(owner,
-                                    repo,
-                                    num,
-                                    auth=(user, password),
-                                    comment=content)
-    data = [
-        ('comment', content),
-        ('url', response['html_url']),
-        ('created_at', response['created_at']),
-        ('updated_at', response['updated_at']),
-    ]
-    click.echo(tabulate(data, tablefmt='grid'))
+def get(ctx, pr_id, branch, checkout):
+    '''Pull a pull request to local.'''
+    repo, config = ctx['repo'], ctx['config']
 
+    remote = config['upstream_remote']
+    repo.fetch_pull_request(remote, pr_id, branch)
+    print_normal(f'Pulled pr {remote}/{pr_id} to local branch {branch}.')
 
-@pull_request.command()
-@option('-n', '--num', required=True, help='Number of a pr.')
-@option('-u',
-        '--user',
-        required=True,
-        type=str,
-        help='Owner of the repo starting the pr.')
-@option('-p', '--password', prompt=True, hide_input=True)
-@option('--title', help='New title of the pr.')
-@option('--body', help='New body of the pr.')
-@option('--mcm/--no-mcm',
-        default=True,
-        help='If maintainers can modify the pr.')
-@click.pass_obj
-def update(state, num, user, password, title, body, mcm):
-    '''Modify a pull request.'''
-    owner, repo = state['owner'], state['repo']
-    pull_request = update_pull_request(owner,
-                                       repo,
-                                       num,
-                                       auth=(user, password),
-                                       title=title,
-                                       body=body,
-                                       maintainer_can_modify=mcm)
-    content = getattr(pull_request, 'content', {})
-    click.echo(tabulate(list(content.items()), tablefmt='grid'))
-
-
-@pull_request.command()
-@option('-n', '--num', required=True, type=str, help='Number of a pr.')
-@option('-u',
-        '--user',
-        required=True,
-        type=str,
-        help='Owner of the repo starting the pr.')
-@option('-p', '--password', prompt=True, hide_input=True)
-@option('--close', 'state', flag_value='closed', default=True)
-@option('--open', 'state', flag_value='open')
-@click.pass_obj
-def toggle(state_obj, num, user, password, state):
-    '''Close a pull request.'''
-    owner, repo = state_obj['owner'], state_obj['repo']
-    pull_request = update_pull_request(owner,
-                                       repo,
-                                       num,
-                                       auth=(user, password),
-                                       state=state)
-    content = getattr(pull_request, 'meta', {})
-    click.echo(tabulate(list(content.items()), tablefmt='grid'))
-
-
-@pull_request.command()
-@option('-n', '--num', required=True, help='Number of a pr.')
-@option('-u',
-        '--user',
-        required=True,
-        type=str,
-        help='Owner of the repo starting the pr.')
-@option('-p', '--password', prompt=True, hide_input=True)
-@option('-m', '--message', type=str, help='Merge commit message.')
-@click.pass_obj
-def merge(state, num, user, password, message):
-    '''Merge a pull request.'''
-    owner, repo = state['owner'], state['repo']
-    response = merge_pull_request(owner,
-                                  repo,
-                                  num,
-                                  auth=(user, password),
-                                  commit_message=message)
-    click.echo(response['message'])
+    if checkout:
+        repo.branch_checkout(branch)
+        print_normal(f'You are in branch {branch} now.')
