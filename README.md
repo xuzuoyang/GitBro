@@ -37,6 +37,12 @@ $ bro pipeline --through master
 
 # Delete both local and remote branch. Or keep rb with --keep-remote.
 $ bro putout dev
+
+# Make a pull request.
+$ bro pull-request make OWNER --base master --open-browser
+
+# Pull a pull request and apply to local repo.
+$ bro pull-request get PR_ID feature-branch --checkout
 ```
 
 ## Support
