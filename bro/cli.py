@@ -1,13 +1,17 @@
 '''This module contains cli functions.'''
 
+from pathlib import Path
+from configparser import ConfigParser
+from webbrowser import open_new
 import click
 from click import argument, command, option
 from tabulate import tabulate
 
 from bro.git import GitRepo
-from bro.hub import (comment_pull_request, create_pull_request,
-                     get_pull_request, merge_pull_request, update_pull_request)
-from bro.utils import error_handler, print_normal, validate_branch
+from bro.hub import (request_github_access_token, create_pull_request)
+from bro.utils import error_handler, print_normal, print_error, validate_branch, get_pr_msg
+
+CONFIG_FILE = Path.home() / '.config/bro'
 
 REMOTE_UPSTREAM = 'upstream'
 REMOTE_ORIGIN = 'origin'
@@ -34,7 +38,29 @@ class AliasedGroup(click.Group):
 @error_handler
 def bro(ctx, path):
     '''Git workflow management tool.'''
-    ctx.obj = GitRepo.from_path(path)
+    config_parser = ConfigParser()
+    if not CONFIG_FILE.exists():
+        config_parser['git'] = {
+            'main_branch': BRANCH_MAIN,
+            'origin_remote': REMOTE_ORIGIN,
+            'upstream_remote': REMOTE_UPSTREAM
+        }
+        config_parser['github'] = {}
+        with open(CONFIG_FILE, 'w') as f:
+            config_parser.write(f)
+    else:
+        config_parser.read(CONFIG_FILE)
+
+    ctx.obj = {
+        'repo': GitRepo.from_path(path),
+        'config': {
+            'main_branch': config_parser.get('git', 'main_branch', fallback=BRANCH_MAIN),
+            'origin_remote': config_parser.get('git', 'origin_remote', fallback=REMOTE_ORIGIN),
+            'upstream_remote': config_parser.get('git', 'upstream_remote', fallback=REMOTE_UPSTREAM),
+            'username': config_parser.get('github', 'username', fallback=''),
+            'access_token': config_parser.get('github', 'access_token', fallback='')
+        }
+    }
 
 
 @bro.command()
@@ -46,12 +72,13 @@ def bro(ctx, path):
         help='Start point of the new branch, default master.')
 @click.pass_obj
 @error_handler
-def pickup(repo, branch, since):
+def pickup(ctx, branch, since):
     '''Start a new branch to work on.'''
+    repo, config = ctx['repo'], ctx['config']
     validate_branch(repo, since)
 
-    repo.fetch(REMOTE_UPSTREAM, since)
-    remote_branch = f'{REMOTE_UPSTREAM}/{since}'
+    repo.fetch(config['upstream_remote'], since)
+    remote_branch = f'{config["upstream_remote"]}/{since}'
     print_normal(f'Fetched remote branch {remote_branch}.')
 
     repo.branch_checkout(branch, create=True, start_point=remote_branch)
@@ -67,13 +94,14 @@ def pickup(repo, branch, since):
 @option('-m', '--merge', is_flag=True, help='Merge instead of rebase.')
 @click.pass_obj
 @error_handler
-def pipeline(repo, through, merge):
+def pipeline(ctx, through, merge):
     '''Sync with certain remote branch.'''
+    repo, config = ctx['repo'], ctx['config']
     validate_branch(repo, through)
 
-    repo.pull(REMOTE_UPSTREAM, through, rebase=not merge)
+    repo.pull(config['upstream_remote'], through, rebase=not merge)
     method = 'merged' if merge else 'rebased'
-    print_normal(f'Synced from {REMOTE_UPSTREAM}/{through} ({method}).')
+    print_normal(f'Synced from {config["upstream_remote"]}/{through} ({method}).')
 
 
 @bro.command()
@@ -81,21 +109,22 @@ def pipeline(repo, through, merge):
 @option('-k', '--keep-remote', is_flag=True, help='Keep remote branch.')
 @click.pass_obj
 @error_handler
-def putout(repo, branch, keep_remote):
+def putout(ctx, branch, keep_remote):
     '''End the branch after finishing the task.'''
+    repo, config = ctx['repo'], ctx['config']
     validate_branch(repo, branch)
 
-    repo.branch_checkout(BRANCH_MAIN)
-    print_normal(f'Checked out to branch {BRANCH_MAIN}.')
+    repo.branch_checkout(config['main_branch'])
+    print_normal(f'Checked out to branch {config["main_branch"]}.')
 
     repo.pull(REMOTE_UPSTREAM, BRANCH_MAIN)
-    print_normal(f'Synced from remote {REMOTE_UPSTREAM} (rebased).')
+    print_normal(f'Synced from remote {config["upstream_remote"]} (rebased).')
 
     repo.branch_delete(branch)
     print_normal(f'Deleted local branch {branch}.')
     if not keep_remote:
-        repo.push(REMOTE_ORIGIN, branch, delete=True)
-        print_normal(f'Deleted remote branch {REMOTE_ORIGIN}/{branch}.')
+        repo.push(config['origin_remote'], branch, delete=True)
+        print_normal(f'Deleted remote branch {config["origin_remote"]}/{branch}.')
 
 
 @bro.group()
